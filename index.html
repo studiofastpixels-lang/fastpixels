@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast Pixels</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#0a0a0a;
+  --white:#fff;
+  --red:#e63329;
+  --mid:#888;
+  --border:#e0e0e0;
+}
+html{background:#fff}
+body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--white);color:var(--black);overflow-x:hidden}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  background:var(--white);border-bottom:1px solid var(--border);
+  padding:0 2.5rem;height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.nav-logo{font-size:.85rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--black);text-decoration:none}
+.nav-links{display:flex;gap:1.5rem}
+.nav-links a{font-size:.65rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--black);text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--red)}
+
+/* SCROLL DRIVER */
+#scroll-driver{
+  position:relative;
+  height:600vh;
+}
+
+/* STICKY CANVAS WRAP */
+#heroWrap{
+  position:sticky;top:0;
+  width:100%;height:100vh;
+  overflow:hidden;background:#000;
+}
+#heroCanvas{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  display:block;
+}
+
+/* dark gradient overlay */
+#heroWrap::after{
+  content:\'\';
+  position:absolute;inset:0;
+  background:linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.12) 55%, transparent 100%);
+  pointer-events:none;
+  z-index:5;
+}
+
+/* OVERLAY TEXT BLOCKS */
+.overlay-block{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  padding:4rem 3rem;
+  pointer-events:none;
+  z-index:10;
+  opacity:0;
+  transform:translateY(16px);
+  transition:opacity .7s ease, transform .7s ease;
+}
+.overlay-block.active{
+  opacity:1;
+  transform:translateY(0);
+}
+
+.ov-label{
+  font-size:.63rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(255,255,255,.5);margin-bottom:.7rem;
+}
+.ov-title{
+  font-size:clamp(2.6rem,7.5vw,6.5rem);
+  font-weight:900;letter-spacing:-.03em;text-transform:uppercase;
+  color:#fff;line-height:.92;
+  text-shadow:0 2px 50px rgba(0,0,0,.4);
+  max-width:860px;
+}
+.ov-desc{
+  font-size:.88rem;color:rgba(255,255,255,.68);
+  line-height:1.65;max-width:500px;margin-top:1.1rem;
+}
+.ov-tags{
+  display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.9rem;
+}
+.ov-tag{
+  font-size:.55rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid rgba(255,255,255,.3);padding:4px 10px;color:rgba(255,255,255,.72);
+}
+
+/* progress bar */
+#vidProgress{
+  position:absolute;bottom:0;left:0;height:2px;
+  background:var(--red);width:0%;z-index:20;
+}
+
+/* scroll hint */
+#scrollHint{
+  position:absolute;bottom:2.2rem;left:50%;transform:translateX(-50%);
+  font-size:.58rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(255,255,255,.5);
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  transition:opacity .5s;z-index:20;
+}
+#scrollHint.hidden{opacity:0;pointer-events:none}
+.scroll-arrow{width:1px;height:24px;background:rgba(255,255,255,.4);animation:arrowPulse 1.5s ease infinite}
+@keyframes arrowPulse{0%,100%{opacity:.3;transform:scaleY(1)}50%{opacity:1;transform:scaleY(1.3)}}
+
+/* SECTIONS */
+.section{padding:5rem 2.5rem;border-top:1px solid var(--border)}
+.sec-num{font-size:.62rem;font-weight:700;color:var(--red);letter-spacing:.1em}
+.sec-title{font-size:clamp(2rem,5vw,4rem);font-weight:900;letter-spacing:-.03em;text-transform:uppercase;line-height:.95;margin-bottom:.8rem}
+.sec-desc{font-size:.88rem;color:var(--mid);line-height:1.65;max-width:600px;margin-bottom:.8rem}
+.sec-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:2.5rem}
+.sec-tag{font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--border);padding:4px 9px;color:var(--black)}
+
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:2px}
+.grid-2x2{display:grid;grid-template-columns:repeat(2,1fr);gap:2px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+
+.click-frame{position:relative;overflow:hidden;background:#f0f0f0;aspect-ratio:4/3;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.click-frame img{width:100%;height:100%;object-fit:cover;display:block}
+.click-frame img.hidden{display:none}
+.frame-bar{position:absolute;bottom:0;left:0;right:0;padding:9px 12px;background:linear-gradient(transparent,rgba(0,0,0,.5));display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+.frame-lbl{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff}
+.frame-dots{display:flex;gap:4px}
+.frame-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.4)}
+.frame-dot.on{background:#fff}
+.loading-ph{display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#bbb;background:#f0f0f0 !important}
+
+.anim-wrap{position:relative;overflow:hidden;background:#111;aspect-ratio:4/3;cursor:pointer}
+.anim-wrap img,.anim-wrap video{width:100%;height:100%;object-fit:cover;display:block}
+.anim-wrap:hover img{transform:scale(1.08);transition:transform 6s ease}
+.anim-lbl{position:absolute;bottom:10px;left:12px;font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:rgba(0,0,0,.45);padding:3px 9px;pointer-events:none}
+
+/* KONTAKT */
+.kontakt-section{padding:5rem 2.5rem;background:var(--red);color:var(--white)}
+.k-label{font-size:.62rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:.8rem}
+.k-title{font-size:clamp(2.5rem,6vw,5rem);font-weight:900;letter-spacing:-.03em;text-transform:uppercase;line-height:.95;margin-bottom:3rem}
+.k-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem}
+.k-email{font-size:1rem;font-weight:600;margin-bottom:.4rem}
+.k-meta{font-size:.8rem;color:rgba(255,255,255,.6)}
+.f-row{display:grid;grid-template-columns:1fr 1fr}
+.f-field{border-bottom:1px solid rgba(255,255,255,.3);padding:.9rem 0}
+.f-field.full{grid-column:1/-1}
+.f-field input,.f-field textarea{width:100%;background:transparent;border:none;outline:none;font-size:.88rem;color:#fff;font-family:inherit;padding:0;resize:none}
+.f-field input::placeholder,.f-field textarea::placeholder{color:rgba(255,255,255,.4)}
+.f-field textarea{min-height:80px}
+.f-submit{margin-top:1.5rem}
+.btn-white{background:#fff;color:var(--red);font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:13px 26px;border:none;cursor:pointer;font-family:inherit}
+.btn-white:disabled{opacity:.6;cursor:default}
+.form-status{margin-top:.9rem;font-size:.78rem;font-weight:500;display:none}
+.form-status.show{display:block}
+.form-status.ok{color:#fff}
+.form-status.err{color:#1a1a1a;background:#fff;padding:8px 12px;display:inline-block}
+
+footer{padding:1.1rem 2.5rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mid)}
+
+@media(max-width:768px){
+  nav{padding:0 1rem}
+  .nav-links{gap:.6rem}
+  .nav-links a{font-size:.55rem;letter-spacing:.05em}
+  .overlay-block{padding:2.5rem 1.2rem}
+  .ov-title{font-size:clamp(2rem,10vw,3.5rem)}
+  .section{padding:3rem 1rem}
+  .grid-2,.grid-2x2,.grid-3{grid-template-columns:1fr}
+  .kontakt-section{padding:3rem 1rem}
+  .k-grid{grid-template-columns:1fr;gap:2rem}
+  .f-row{grid-template-columns:1fr}
+  footer{padding:1rem;flex-direction:column;gap:.3rem}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#">Fast Pixels</a>
+  <div class="nav-links">
+    <a href="#vp">Virtualna prenova</a>
+    <a href="#kor">Korekcija</a>
+    <a href="#hv">Variacije</a>
+    <a href="#anim">Animacija</a>
+    <a href="#kontakt">Kontakt</a>
+  </div>
+</nav>
+
+<!-- ══ SCROLL DRIVER ══ -->
+<div id="scroll-driver">
+  <div id="heroWrap">
+
+    <canvas id="heroCanvas"></canvas>
+
+    <div id="vidProgress"></div>
+
+    <!-- BLOK 1: 0–22% → KOREKCIJA -->
+    <div class="overlay-block" id="ov1">
+      <div class="ov-label">Storitev 01</div>
+      <div class="ov-title">Korekcija fotografij</div>
+      <div class="ov-desc">Slabe, temne ali popačene fotografije spremenimo v profesionalne arhitekturne posnetke. Korekcija svetlobe, barv, perspektive in resolucije.</div>
+      <div class="ov-tags">
+        <span class="ov-tag">HDR korekcija</span>
+        <span class="ov-tag">Perspektiva</span>
+        <span class="ov-tag">Barvna kalibracija</span>
+        <span class="ov-tag">Visoka ločljivost</span>
+      </div>
+    </div>
+
+    <!-- BLOK 2: 22–42% → HITRE VARIACIJE -->
+    <div class="overlay-block" id="ov2">
+      <div class="ov-label">Storitev 02</div>
+      <div class="ov-title">Hitre variacije</div>
+      <div class="ov-desc">V kratkem času pripravimo več različic iste fotografije — različne ure dneva, razsvetljava, letni časi. Idealno za notranje oblikovalce in arhitekte.</div>
+      <div class="ov-tags">
+        <span class="ov-tag">Več variacij</span>
+        <span class="ov-tag">Različne ure</span>
+        <span class="ov-tag">Letni časi</span>
+        <span class="ov-tag">Arhitekti in oblikovalci</span>
+      </div>
+    </div>
+
+    <!-- BLOK 3: 42–80% → VIRTUALNA PRENOVA -->
+    <div class="overlay-block" id="ov3">
+      <div class="ov-label">Storitev 03</div>
+      <div class="ov-title">Virtualna prenova stanovanja</div>
+      <div class="ov-desc">Prazen prostor vizualno opremimo s pohištvom in dekoracijo ali pokažemo potencial prenove — s sodobnimi tehnikami digitalne vizualizacije.</div>
+      <div class="ov-tags">
+        <span class="ov-tag">Skandinavski stil</span>
+        <span class="ov-tag">Warm contemporary</span>
+        <span class="ov-tag">Luxury dark</span>
+        <span class="ov-tag">3 variacije</span>
+      </div>
+    </div>
+
+    <!-- BLOK 4: 80–100% → ANIMACIJA -->
+    <div class="overlay-block" id="ov4">
+      <div class="ov-label">Storitev 04</div>
+      <div class="ov-title">Animacija prostora</div>
+      <div class="ov-desc">Iz fotografij ustvarimo video animacijo, ki nepremičnino prikaže z življenjem in gibanjem. Idealno za oglaševanje na družbenih omrežjih.</div>
+      <div class="ov-tags">
+        <span class="ov-tag">Video animacija</span>
+        <span class="ov-tag">Socialni mediji</span>
+        <span class="ov-tag">Dinamična predstavitev</span>
+      </div>
+    </div>
+
+    <div id="scrollHint">
+      <span>Scrollaj</span>
+      <div class="scroll-arrow"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ SEKCIJE ══ -->
+<section class="section" id="vp">
+  <div class="sec-num">03</div>
+  <div class="sec-title">Virtualna prenova stanovanja</div>
+  <p class="sec-desc">Prazen prostor vizualno opremimo s pohištvom in dekoracijo ali pokažemo potencial prenove — s sodobnimi tehnikami digitalne vizualizacije.</p>
+  <div class="sec-tags">
+    <span class="sec-tag">Skandinavski stil</span>
+    <span class="sec-tag">Warm contemporary</span>
+    <span class="sec-tag">Luxury dark</span>
+    <span class="sec-tag">3 variacije</span>
+  </div>
+  <div class="grid-2x2">
+    <div class="click-frame loading-ph" data-type="vp" data-idx="0">Nalaganje…</div>
+    <div class="click-frame loading-ph" data-type="vp" data-idx="1">Nalaganje…</div>
+    <div class="click-frame loading-ph" data-type="vp" data-idx="2">Nalaganje…</div>
+    <div class="click-frame loading-ph" data-type="vp" data-idx="3">Nalaganje…</div>
+  </div>
+</section>
+
+<section class="section" id="kor">
+  <div class="sec-num">01</div>
+  <div class="sec-title">Korekcija fotografij</div>
+  <p class="sec-desc">Slabe, temne ali popačene fotografije spremenimo v profesionalne arhitekturne posnetke. Korekcija svetlobe, barv, perspektive in resolucije.</p>
+  <div class="sec-tags">
+    <span class="sec-tag">HDR korekcija</span>
+    <span class="sec-tag">Perspektiva</span>
+    <span class="sec-tag">Barvna kalibracija</span>
+    <span class="sec-tag">Visoka ločljivost</span>
+  </div>
+  <div class="grid-2x2">
+    <div class="click-frame loading-ph" data-type="kor" data-idx="0">Nalaganje…</div>
+    <div class="click-frame loading-ph" data-type="kor" data-idx="1">Nalaganje…</div>
+    <div class="click-frame loading-ph" data-type="kor" data-idx="2">Nalaganje…</div>
+    <div class="click-frame loading-ph" data-type="kor" data-idx="3">Nalaganje…</div>
+  </div>
+</section>
+
+<section class="section" id="anim">
+  <div class="sec-num">04</div>
+  <div class="sec-title">Animacija prostora</div>
+  <p class="sec-desc">Iz fotografij ustvarimo video animacijo, ki nepremičnino prikaže z življenjem in gibanjem. Idealno za oglaševanje na družbenih omrežjih.</p>
+  <div class="sec-tags">
+    <span class="sec-tag">Video animacija</span>
+    <span class="sec-tag">Socialni mediji</span>
+    <span class="sec-tag">Dinamična predstavitev</span>
+  </div>
+  <div class="grid-3">
+    <div class="anim-wrap loading-ph" data-type="anim" data-idx="0">Nalaganje…</div>
+    <div class="anim-wrap loading-ph" data-type="anim" data-idx="1">Nalaganje…</div>
+    <div class="anim-wrap loading-ph" data-type="anim" data-idx="2">Nalaganje…</div>
+  </div>
+</section>
+
+<section class="section" id="hv">
+  <div class="sec-num">02</div>
+  <div class="sec-title">Hitre variacije</div>
+  <p class="sec-desc">V kratkem času pripravimo več različic iste fotografije — različne ure dneva, razsvetljava, letni časi.<br><br>Še posebej uporabno za notranje oblikovalce in arhitekte, ki želijo preveriti različne variante pred končno odločitvijo.</p>
+  <div class="sec-tags">
+    <span class="sec-tag">Več variacij</span>
+    <span class="sec-tag">Različne ure</span>
+    <span class="sec-tag">Letni časi</span>
+    <span class="sec-tag">Arhitekti in oblikovalci</span>
+  </div>
+  <div class="grid-3">
+    <div class="click-frame loading-ph" data-type="hv" data-idx="0">Nalaganje…</div>
+    <div class="click-frame loading-ph" data-type="hv" data-idx="1">Nalaganje…</div>
+    <div class="click-frame loading-ph" data-type="hv" data-idx="2">Nalaganje…</div>
+  </div>
+</section>
+
+<section class="kontakt-section" id="kontakt">
+  <div class="k-label">Kontakt</div>
+  <div class="k-title">Pišite<br>nam.</div>
+  <div class="k-grid">
+    <div>
+      <div class="k-email">studio.fastpixels@gmail.com</div>
+      <div class="k-meta">Odgovorimo v 24 urah</div>
+    </div>
+    <div>
+      <form id="kontaktForm" action="https://formspree.io/f/mwvdnope" method="POST">
+        <div class="f-row">
+          <div class="f-field"><input type="text" name="ime" placeholder="Ime" required></div>
+          <div class="f-field"><input type="email" name="email" placeholder="E-pošta" required></div>
+          <div class="f-field full"><input type="text" name="storitev" placeholder="Storitev"></div>
+          <div class="f-field full"><textarea name="sporocilo" placeholder="Sporočilo" required></textarea></div>
+        </div>
+        <div class="f-submit">
+          <button class="btn-white" type="submit" id="formSubmitBtn">Pošljite</button>
+          <div id="formStatus" class="form-status"></div>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>© 2025 Fast Pixels</span>
+  <span>Virtualna prenova · Korekcija · Animacija</span>
+</footer>
+
+<script>
+const FRAMES = Array.from({length:118}, (_,i) => `assets/hero/frame-${String(i+1).padStart(3,'0')}.webp`);
+</script>
+<script>
+/* ── CANVAS FRAME ANIMATION ── */
+(function(){
+  const canvas   = document.getElementById('heroCanvas');
+  const ctx      = canvas.getContext('2d');
+  const driver   = document.getElementById('scroll-driver');
+  const hint     = document.getElementById('scrollHint');
+  const progress = document.getElementById('vidProgress');
+  const total    = FRAMES.length;
+
+  const blocks = [
+    { el: document.getElementById('ov1'), from: 0,    to: 0.22 },
+    { el: document.getElementById('ov2'), from: 0.22, to: 0.42 },
+    { el: document.getElementById('ov3'), from: 0.42, to: 0.80 },
+    { el: document.getElementById('ov4'), from: 0.80, to: 1.00 },
+  ];
+
+  // Preload all images
+  const imgs = new Array(total);
+  let loaded = 0;
+  let currentImg = null;
+
+  function resize(){
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    if(currentImg) drawImg(currentImg);
+  }
+
+  function drawImg(img){
+    currentImg = img;
+    const cw = canvas.width, ch = canvas.height;
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const scale = Math.max(cw/iw, ch/ih);
+    const sw = iw*scale, sh = ih*scale;
+    const ox = (cw-sw)/2, oy = (ch-sh)/2;
+    ctx.clearRect(0,0,cw,ch);
+    ctx.drawImage(img, ox, oy, sw, sh);
+  }
+
+  function onScroll(){
+    const scrollTop = window.scrollY;
+    const dTop      = driver.offsetTop;
+    const dH        = driver.offsetHeight;
+    const wH        = window.innerHeight;
+    const totalScroll = dH - wH;
+    const scrolled  = Math.max(0, scrollTop - dTop);
+    const p         = Math.min(1, scrolled / totalScroll);
+
+    // frame index
+    const idx = Math.min(total-1, Math.floor(p * total));
+
+    if(imgs[idx] && imgs[idx].complete){
+      drawImg(imgs[idx]);
+    } else {
+      // trigger priority load around this index
+      loadNearby(idx);
+      // fallback: draw nearest already-loaded frame so canvas isn't blank
+      for(let d = 1; d < total; d++){
+        const a = idx - d, b = idx + d;
+        if(a >= 0 && imgs[a] && imgs[a].complete){ drawImg(imgs[a]); break; }
+        if(b < total && imgs[b] && imgs[b].complete){ drawImg(imgs[b]); break; }
+      }
+    }
+
+    // progress
+    progress.style.width = (p*100)+'%';
+
+    // hint
+    if(scrolled > 40) hint.classList.add('hidden');
+    else hint.classList.remove('hidden');
+
+    // overlay blocks
+    blocks.forEach(b => {
+      if(p >= b.from && p < b.to) b.el.classList.add('active');
+      else b.el.classList.remove('active');
+    });
+  }
+
+  // progressive frame loading: load near current frame first, then fill in rest
+  const loadedSet = new Set();
+  let pendingIdx = 0;
+
+  function loadFrame(i){
+    if(loadedSet.has(i) || i < 0 || i >= total) return;
+    loadedSet.add(i);
+    const img = new Image();
+    img.onload = () => {
+      loaded++;
+      if(i === 0 && !currentImg){ resize(); drawImg(img); }
+      onScroll();
+    };
+    img.src = FRAMES[i];
+    imgs[i] = img;
+  }
+
+  // load first frame immediately so hero isn't blank
+  loadFrame(0);
+
+  // load a window around current scroll position with priority
+  function loadNearby(centerIdx){
+    const radius = 6;
+    for(let d = 0; d <= radius; d++){
+      loadFrame(centerIdx + d);
+      loadFrame(centerIdx - d);
+    }
+  }
+
+  // background-fill remaining frames gradually (low priority, spaced out)
+  function backgroundFill(){
+    let i = 0;
+    const step = () => {
+      while(i < total && loadedSet.has(i)) i++;
+      if(i >= total) return;
+      loadFrame(i);
+      i++;
+      setTimeout(step, 60); // throttle so it doesn't compete with active scroll loads
+    };
+    step();
+  }
+  setTimeout(backgroundFill, 800);
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', () => { resize(); onScroll(); });
+  resize();
+})();
+
+/* ── NAV ANCHOR SCROLL ── */
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const id = a.getAttribute('href').slice(1);
+    const target = document.getElementById(id);
+    if(!target) return;
+    e.preventDefault();
+    window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 56, behavior:'smooth' });
+  });
+});
+
+/* ── LAZY LOAD GALLERIES ── */
+const DATA = {
+  vp:  [
+    ['assets/gallery/vp/1-prej.webp','assets/gallery/vp/1-potem.webp'],
+    ['assets/gallery/vp/2-prej.webp','assets/gallery/vp/2-potem.webp'],
+    ['assets/gallery/vp/3-prej.webp','assets/gallery/vp/3-potem.webp'],
+    ['assets/gallery/vp/4-prej.webp','assets/gallery/vp/4-potem.webp']
+  ],
+  kor: [
+    ['assets/gallery/kor/1-prej.webp','assets/gallery/kor/1-potem.webp'],
+    ['assets/gallery/kor/2-prej.webp','assets/gallery/kor/2-potem.webp'],
+    ['assets/gallery/kor/3-prej.webp','assets/gallery/kor/3-potem.webp'],
+    ['assets/gallery/kor/4-prej.webp','assets/gallery/kor/4-potem.webp']
+  ],
+  anim:['assets/anim/ANIMACIJA_2.mp4','assets/anim/ANIMACIJA_3.mp4','assets/anim/ANIMACIJA_4.mp4'],
+  hv:  [
+    ['assets/gallery/hv/1-1.webp','assets/gallery/hv/1-2.webp','assets/gallery/hv/1-3.webp'],
+    ['assets/gallery/hv/2-1.webp','assets/gallery/hv/2-2.webp','assets/gallery/hv/2-3.webp'],
+    ['assets/gallery/hv/4-1.webp','assets/gallery/hv/4-2.webp','assets/gallery/hv/4-3.webp']
+  ]
+};
+const LBLS = { vp:['Prej','Potem'], kor:['Pred','Po'], hv:['Variacija 1','Variacija 2','Variacija 3'] };
+
+function buildClickFrame(el, imgs, lbls){
+  el.classList.remove('loading-ph');
+  el.innerHTML = imgs.map((s,i) =>
+    `<img src="${s}" alt=""${i>0?' class="hidden"':''}>`
+  ).join('') +
+  `<div class="frame-bar"><span class="frame-lbl">${lbls[0]}</span>
+  <div class="frame-dots">${imgs.map((_,i) =>
+    `<div class="frame-dot${i===0?' on':''}"></div>`).join('')}</div></div>`;
+  let cur=0;
+  function advance(){
+    el.querySelectorAll('img')[cur].classList.add('hidden');
+    el.querySelectorAll('.frame-dot')[cur].classList.remove('on');
+    cur=(cur+1)%imgs.length;
+    el.querySelectorAll('img')[cur].classList.remove('hidden');
+    el.querySelectorAll('.frame-dot')[cur].classList.add('on');
+    el.querySelector('.frame-lbl').textContent=lbls[cur];
+  }
+  el.addEventListener('click',advance);
+  el.addEventListener('touchend',e=>{e.preventDefault();advance();},{passive:false});
+}
+
+function buildAnim(el,src){
+  el.classList.remove('loading-ph');
+  el.innerHTML=`<video src="${src}" muted loop playsinline preload="metadata"></video><div class="anim-lbl">Predvajaj</div>`;
+  const v = el.querySelector('video');
+  el.addEventListener('mouseenter',()=>v.play().catch(()=>{}));
+  el.addEventListener('mouseleave',()=>{v.pause();v.currentTime=0;});
+  el.addEventListener('touchstart',e=>{
+    if(v.paused){v.play().catch(()=>{});} else {v.pause();}
+  },{passive:true});
+}
+
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if(!entry.isIntersecting) return;
+    const el = entry.target; obs.unobserve(el);
+    const type=el.dataset.type, idx=+el.dataset.idx;
+    if(type==='vp')  buildClickFrame(el,DATA.vp[idx],LBLS.vp);
+    if(type==='kor') buildClickFrame(el,DATA.kor[idx],LBLS.kor);
+    if(type==='anim')buildAnim(el,DATA.anim[idx]);
+    if(type==='hv')  buildClickFrame(el,DATA.hv[idx],LBLS.hv);
+  });
+},{rootMargin:'300px'});
+document.querySelectorAll('[data-type]').forEach(el=>obs.observe(el));
+/* ── KONTAKT FORM (Formspree) ── */
+(function(){
+  const form   = document.getElementById('kontaktForm');
+  const btn    = document.getElementById('formSubmitBtn');
+  const status = document.getElementById('formStatus');
+  if(!form) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btn.disabled = true;
+    btn.textContent = 'Pošiljanje…';
+    status.className = 'form-status';
+
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if(res.ok){
+        status.textContent = 'Sporočilo poslano. Hvala, odgovorimo v 24 urah.';
+        status.classList.add('show','ok');
+        form.reset();
+        btn.textContent = 'Pošljite';
+      } else {
+        const data = await res.json().catch(()=>({}));
+        const msg = (data.errors && data.errors[0] && data.errors[0].message) || 'Prišlo je do napake. Poskusite znova ali nam pišite direktno na e-pošto.';
+        status.textContent = msg;
+        status.classList.add('show','err');
+        btn.textContent = 'Pošljite';
+      }
+    } catch(err) {
+      status.textContent = 'Povezava ni uspela. Preverite internetno povezavo in poskusite znova.';
+      status.classList.add('show','err');
+      btn.textContent = 'Pošljite';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
