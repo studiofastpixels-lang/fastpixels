@@ -358,7 +358,7 @@ footer{padding:1.1rem 2.5rem;border-top:1px solid var(--border);display:flex;jus
 </footer>
 
 <script>
-const FRAMES = Array.from({length:118}, (_,i) => `assets/hero/frame-${String(i+1).padStart(3,'0')}.webp`);
+const FRAMES = Array.from({length:118}, (_,i) => `frame-${String(i+1).padStart(3,'0')}.webp`);
 </script>
 <script>
 /* ── CANVAS FRAME ANIMATION ── */
@@ -500,22 +500,22 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 /* ── LAZY LOAD GALLERIES ── */
 const DATA = {
   vp:  [
-    ['assets/gallery/vp/1-prej.webp','assets/gallery/vp/1-potem.webp'],
-    ['assets/gallery/vp/2-prej.webp','assets/gallery/vp/2-potem.webp'],
-    ['assets/gallery/vp/3-prej.webp','assets/gallery/vp/3-potem.webp'],
-    ['assets/gallery/vp/4-prej.webp','assets/gallery/vp/4-potem.webp']
+    ['gallery/vp/1-prej.webp','gallery/vp/1-potem.webp'],
+    ['gallery/vp/2-prej.webp','gallery/vp/2-potem.webp'],
+    ['gallery/vp/3-prej.webp','gallery/vp/3-potem.webp'],
+    ['gallery/vp/4-prej.webp','gallery/vp/4-potem.webp']
   ],
   kor: [
-    ['assets/gallery/kor/1-prej.webp','assets/gallery/kor/1-potem.webp'],
-    ['assets/gallery/kor/2-prej.webp','assets/gallery/kor/2-potem.webp'],
-    ['assets/gallery/kor/3-prej.webp','assets/gallery/kor/3-potem.webp'],
-    ['assets/gallery/kor/4-prej.webp','assets/gallery/kor/4-potem.webp']
+    ['gallery/kor/1-prej.webp','gallery/kor/1-potem.webp'],
+    ['gallery/kor/2-prej.webp','gallery/kor/2-potem.webp'],
+    ['gallery/kor/3-prej.webp','gallery/kor/3-potem.webp'],
+    ['gallery/kor/4-prej.webp','gallery/kor/4-potem.webp']
   ],
-  anim:['assets/anim/ANIMACIJA_2.mp4','assets/anim/ANIMACIJA_3.mp4','assets/anim/ANIMACIJA_4.mp4'],
+  anim:['anim/ANIMACIJA_2.mp4','anim/ANIMACIJA_3.mp4','anim/ANIMACIJA_4.mp4'],
   hv:  [
-    ['assets/gallery/hv/1-1.webp','assets/gallery/hv/1-2.webp','assets/gallery/hv/1-3.webp'],
-    ['assets/gallery/hv/2-1.webp','assets/gallery/hv/2-2.webp','assets/gallery/hv/2-3.webp'],
-    ['assets/gallery/hv/4-1.webp','assets/gallery/hv/4-2.webp','assets/gallery/hv/4-3.webp']
+    ['gallery/hv/1-1.webp','gallery/hv/1-2.webp','gallery/hv/1-3.webp'],
+    ['gallery/hv/2-1.webp','gallery/hv/2-2.webp','gallery/hv/2-3.webp'],
+    ['gallery/hv/4-1.webp','gallery/hv/4-2.webp','gallery/hv/4-3.webp']
   ]
 };
 const LBLS = { vp:['Prej','Potem'], kor:['Pred','Po'], hv:['Variacija 1','Variacija 2','Variacija 3'] };
